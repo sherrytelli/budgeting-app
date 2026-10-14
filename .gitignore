@@ -46,3 +46,6 @@ example
 # agent plans and reference files for agent
 /.agents/plans
 /.agents/refs
+# IDEs
+.idea/
+.vscode/
