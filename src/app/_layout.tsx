@@ -43,19 +43,33 @@ function RootNavigator() {
 // Linux/Windows — so force the reference stack on web to keep glyphs identical.
 const REF_FONT = "'Roboto', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif";
 
-function useWebFontStack() {
+/**
+ * Web-only rules that React Native Web has no equivalent for:
+ * - the reference font stack (see above);
+ * - the reference's focus rings: `input { outline: none }` plus
+ *   `:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px }`
+ *   (styles.css:39-42). Without the first rule the UA paints its own blue
+ *   outline inside the field on top of the green `.field:focus-within` ring.
+ */
+const REF_WEB_CSS = `
+body, body * { font-family: ${REF_FONT} !important; }
+input, input:focus-visible { outline: none; }
+:focus-visible { outline: 2px solid ${C.primary}; outline-offset: 2px; }
+`;
+
+function useWebReferenceStyles() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const el = document.createElement('style');
-    el.setAttribute('data-ref-font', '1');
-    el.textContent = `body, body * { font-family: ${REF_FONT} !important; }`;
+    el.setAttribute('data-ref-styles', '1');
+    el.textContent = REF_WEB_CSS;
     document.head.appendChild(el);
     return () => el.remove();
   }, []);
 }
 
 export default function RootLayout() {
-  useWebFontStack();
+  useWebReferenceStyles();
   return (
     <SafeAreaProvider>
       <ThemeProvider value={LightOnlyTheme}>
