@@ -562,7 +562,14 @@ function CatRow({
         />
       </View>
       <Animated.View style={[styles.catBody, { height: bodyH }]}>
-        <View style={styles.catBodyInner} onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
+        {/* The measuring wrapper is absolutely positioned so the collapsed
+            (height: 0) parent can't clamp its measured height: CSS lets the
+            child keep its natural size, while native yoga clamps it to zero.
+            Without this, contentH stayed 0 on device and the expanded body
+            never grew — no expense logs, no edit/delete buttons. */}
+        <View
+          style={styles.catBodyInner}
+          onLayout={(e) => setContentH(e.nativeEvent.layout.height)}>
           {logs.length ? (
             logs.map((e) => (
               <View key={e.id} style={styles.log}>
@@ -755,7 +762,7 @@ const styles = StyleSheet.create({
   catBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: C.catBar },
   catBarFill: { height: '100%', backgroundColor: C.primary },
   catBody: { overflow: 'hidden' },
-  catBodyInner: { minHeight: 0 },
+  catBodyInner: { position: 'absolute', left: 0, right: 0, top: 0 },
   log: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingRight: 8, paddingLeft: 66 },
   logMain: { flex: 1, minWidth: 0 },
   // ref .log-note { font-weight: 550 } — renders as the same face as '600' here.
