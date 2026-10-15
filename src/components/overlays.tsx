@@ -36,7 +36,7 @@ import { Btn, IconBtn } from '@/components/ui';
 
 export interface OverlayApi {
   openSheet(title: string | null, content: (api: { close: () => void }) => ReactNode): { close: () => void };
-  openDialog(content: (api: { close: () => void }) => ReactNode): { close: () => void };
+  openDialog(content: (api: { close: () => void }) => ReactNode, onClose?: () => void): { close: () => void };
   openConfirmDialog(opts: {
     title: string;
     message: string;
@@ -84,13 +84,24 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState<Layer[]>([]);
   const idRef = useRef(0);
 
+  // Dismissal is reported through `onClose` whatever the path — the layer's own
+  // action, the backdrop, or the returned handle. A `.field.select` keeps its
+  // focus ring while its picker dialog is up and drops it once it is gone.
+  const closeHandlers = useRef(new Map<number, () => void>());
+
   const remove = useCallback((id: number) => {
+    const onClose = closeHandlers.current.get(id);
+    if (onClose) {
+      closeHandlers.current.delete(id);
+      onClose();
+    }
     setLayers((ls) => ls.filter((l) => l.id !== id));
   }, []);
 
   const open = useCallback(
-    (layer: NewLayer) => {
+    (layer: NewLayer, onClose?: () => void) => {
       const id = ++idRef.current;
+      if (onClose) closeHandlers.current.set(id, onClose);
       setLayers((ls) => [...ls, { ...layer, id } as Layer]);
       return { close: () => remove(id) };
     },
@@ -100,7 +111,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const api: OverlayApi = useMemo(
     () => ({
       openSheet: (title, content) => open({ kind: 'sheet', title, content }),
-      openDialog: (content) => open({ kind: 'dialog', content }),
+      openDialog: (content, onClose) => open({ kind: 'dialog', content }, onClose),
       openConfirmDialog: ({ title, message, confirmLabel = 'Delete', onConfirm }) => {
         open({
           kind: 'dialog',

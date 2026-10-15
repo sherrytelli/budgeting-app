@@ -23,20 +23,26 @@ export function BudgetFormBody({ budget, close }: { budget?: Budget; close: () =
   const [monthKey, setMonthKey] = useState(isEdit ? budget!.monthKey : app.monthKey);
   const [amount, setAmount] = useState(isEdit ? String(budget!.amount) : '');
   const [currency, setCurrency] = useState<Currency>(isEdit ? budget!.currency : 'PKR');
+  const [mpOpen, setMpOpen] = useState(false);
   const [nameErr, setNameErr] = useState('');
   const [amtErr, setAmtErr] = useState(false);
 
-  const openMonthPicker = () =>
-    overlays.openDialog(({ close: closePicker }) => (
-      <MonthPickerBody
-        currentKey={monthKey}
-        onPick={(mk) => {
-          closePicker();
-          setMonthKey(mk);
-        }}
-        close={closePicker}
-      />
-    ));
+  const openMonthPicker = () => {
+    setMpOpen(true);
+    overlays.openDialog(
+      ({ close: closePicker }) => (
+        <MonthPickerBody
+          currentKey={monthKey}
+          onPick={(mk) => {
+            closePicker();
+            setMonthKey(mk);
+          }}
+          close={closePicker}
+        />
+      ),
+      () => setMpOpen(false),
+    );
+  };
 
   const save = () => {
     const trimmed = name.trim();
@@ -83,7 +89,7 @@ export function BudgetFormBody({ budget, close }: { budget?: Budget; close: () =
       />
       {nameErr ? <Helper error>{nameErr}</Helper> : null}
       <View style={styles.gap} />
-      <SelectField icon="calendar" value={<Text style={styles.valueText}>{fmtMonth(monthKey)}</Text>} onPress={openMonthPicker} />
+      <SelectField icon="calendar" focused={mpOpen} value={<Text style={styles.valueText}>{fmtMonth(monthKey)}</Text>} onPress={openMonthPicker} />
       <View style={styles.gap} />
       <Field
         prefix={curSym(currency)}

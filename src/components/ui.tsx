@@ -127,6 +127,20 @@ export function IconBtn({
 
 /* ---------- fields ---------- */
 
+/**
+ * The reference highlights the focused `.field` (styles.css:109):
+ * `border-color: var(--primary); box-shadow: 0 0 0 3px rgba(46,122,107,.12)`.
+ * Text inputs get it from `:focus-within`. The button-based `.field.select`
+ * controls only match `:focus-within` while their popup owns focus, which is
+ * what the `focused` prop of `SelectField` mirrors.
+ */
+
+/** Native stand-in for the box-shadow spread: a ring drawn just outside the field. */
+function FieldRing() {
+  if (Platform.OS === 'web') return null;
+  return <View pointerEvents="none" style={styles.fieldRing} />;
+}
+
 export function Field({
   icon,
   prefix,
@@ -140,6 +154,7 @@ export function Field({
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.field, focused && styles.fieldFocus]}>
+      {focused ? <FieldRing /> : null}
       {icon ? <Icon name={icon} size={20} color={C.text3} style={styles.fieldLead} /> : null}
       {prefix ? <Text style={styles.prefix}>{prefix}</Text> : null}
       <TextInput
@@ -165,22 +180,27 @@ export function SelectField({
   value,
   placeholder,
   isPlaceholder = false,
+  focused = false,
   onPress,
 }: {
   icon?: string;
   value: ReactNode;
   placeholder?: string;
   isPlaceholder?: boolean;
+  /** Set while the popup this field opens (menu, picker dialog) is up. */
+  focused?: boolean;
   onPress?: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
+  const active = pressed || focused;
   return (
     <Pressable
       onPress={onPress}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       accessibilityRole="button"
-      style={[styles.field, pressed && styles.fieldFocus]}>
+      style={[styles.field, active && styles.fieldFocus]}>
+      {active ? <FieldRing /> : null}
       {icon ? <Icon name={icon} size={20} color={C.text3} style={styles.fieldLead} /> : null}
       <View style={styles.selectVal}>
         {isPlaceholder && placeholder ? (
@@ -291,6 +311,20 @@ const styles = StyleSheet.create({
     web: { borderColor: C.primary, boxShadow: '0 0 0 3px rgba(46,122,107,.12)' },
     default: { borderColor: C.primary },
   })!,
+  // Native stand-in for the reference's `box-shadow: 0 0 0 3px` spread: a ring
+  // whose outer edge lands 3dp outside the field (radius 16 + 3 → 19). Yoga
+  // measures this view's insets from the parent's *padding* box, so the 1.5dp
+  // border is added to the 3dp spread.
+  fieldRing: {
+    position: 'absolute',
+    left: -4.5,
+    top: -4.5,
+    right: -4.5,
+    bottom: -4.5,
+    borderRadius: 19,
+    borderWidth: 3,
+    borderColor: 'rgba(46,122,107,.12)',
+  },
   fieldLead: { flexShrink: 0 },
   prefix: { fontSize: 14.5, fontWeight: '600', color: C.text2, marginRight: 2 },
   input: { flex: 1, minWidth: 0, fontSize: 16, color: C.text, padding: 0 },

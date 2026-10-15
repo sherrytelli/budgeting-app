@@ -4,14 +4,14 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { C, shadow } from '@/constants/theme';
 import { Icon } from '@/lib/icons';
 import { getSession, setSession } from '@/lib/storage';
-import { Btn, PressableScale, Spinner } from '@/components/ui';
+import { Btn, Field, PressableScale, Spinner } from '@/components/ui';
 
 const DEMO = { email: 'demo@budget.app', pass: 'budget123' };
 
@@ -65,31 +65,27 @@ export default function LoginScreen() {
           <Text style={styles.sub}>Sign in to continue</Text>
         </View>
         <View style={styles.form}>
-          <FieldRow icon="mail">
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={C.text3}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </FieldRow>
-          <FieldRow icon="lock">
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={C.text3}
-              secureTextEntry={!showPass}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <PressableScale onPress={() => setShowPass((s) => !s)} accessibilityLabel="Show or hide password" style={styles.eye}>
-              <Icon name={showPass ? 'eyeOff' : 'eye'} size={20} color={C.text3} />
-            </PressableScale>
-          </FieldRow>
+          <Field
+            icon="mail"
+            placeholder="Email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <Field
+            icon="lock"
+            placeholder="Password"
+            secureTextEntry={!showPass}
+            value={password}
+            onChangeText={setPassword}
+            trailing={
+              <PressableScale onPress={() => setShowPass((s) => !s)} accessibilityLabel="Show or hide password" style={styles.eye}>
+                <Icon name={showPass ? 'eyeOff' : 'eye'} size={20} color={C.text3} />
+              </PressableScale>
+            }
+          />
           {error ? <Text style={styles.error}>Incorrect email or password</Text> : null}
           <Btn block disabled={busy} onPress={submit}>
             {busy ? <Spinner /> : 'Sign in'}
@@ -98,15 +94,6 @@ export default function LoginScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
-  );
-}
-
-function FieldRow({ icon, children }: { icon: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.field}>
-      <Icon name={icon} size={20} color={C.text3} />
-      {children}
-    </View>
   );
 }
 
@@ -126,19 +113,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', marginTop: 20, letterSpacing: 0.2, color: C.text },
   sub: { color: C.text2, fontSize: 14.5, marginTop: 7 },
   form: { width: '100%', maxWidth: 340, gap: 14 },
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-    height: 54,
-    paddingHorizontal: 14,
-    borderWidth: 1.5,
-    borderColor: C.outline2,
-    borderRadius: 16,
-    backgroundColor: C.surface2,
-  },
-  input: { flex: 1, minWidth: 0, fontSize: 16, color: C.text, padding: 0 },
   eye: { padding: 4 },
   error: { color: C.red, fontSize: 13.5, paddingLeft: 6 },
   hint: { color: C.text3, fontSize: 12.5, textAlign: 'center', marginTop: 4 },

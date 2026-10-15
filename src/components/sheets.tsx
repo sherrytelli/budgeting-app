@@ -55,22 +55,28 @@ export function ExpenseSheetBody({
   const [note, setNote] = useState(isEdit ? expense!.note : '');
   const [amount, setAmount] = useState(isEdit ? String(expense!.amount) : '');
   const [ddOpen, setDdOpen] = useState(false);
+  const [tpOpen, setTpOpen] = useState(false);
   const [amtErr, setAmtErr] = useState(false);
   const dk = isEdit ? expense!.date : date;
 
   const selected = cats.find((c) => c.id === selCat) ?? cats[0];
 
-  const openTimePicker = () =>
-    overlays.openDialog(({ close: closePicker }) => (
-      <TimePickerBody
-        initialMins={time}
-        onPick={(m) => {
-          closePicker();
-          setTime(m);
-        }}
-        close={closePicker}
-      />
-    ));
+  const openTimePicker = () => {
+    setTpOpen(true);
+    overlays.openDialog(
+      ({ close: closePicker }) => (
+        <TimePickerBody
+          initialMins={time}
+          onPick={(m) => {
+            closePicker();
+            setTime(m);
+          }}
+          close={closePicker}
+        />
+      ),
+      () => setTpOpen(false),
+    );
+  };
 
   const save = () => {
     const amt = parseFloat(amount.replace(/,/g, ''));
@@ -97,6 +103,7 @@ export function ExpenseSheetBody({
       <View>
         <SelectField
           icon="tag"
+          focused={ddOpen}
           value={<IconValue icon={selected.icon} name={selected.name} />}
           onPress={() => setDdOpen((o) => !o)}
         />
@@ -137,7 +144,7 @@ export function ExpenseSheetBody({
       />
       {amtErr ? <Helper error>Enter an amount greater than 0</Helper> : null}
       <View style={styles.gap} />
-      <SelectField icon="clock" value={<Text style={styles.valueText}>{fmtTime(time)}</Text>} onPress={openTimePicker} />
+      <SelectField icon="clock" focused={tpOpen} value={<Text style={styles.valueText}>{fmtTime(time)}</Text>} onPress={openTimePicker} />
       <View style={styles.gap} />
       <View style={styles.gap} />
       <Btn block onPress={save}>
@@ -165,6 +172,7 @@ export function CategorySheetBody({
   const [limit, setLimit] = useState(isEdit ? String(cat!.dailyLimit) : '');
   const [icon, setIcon] = useState<string>(isEdit ? cat!.icon : 'basket');
   const [reminder, setReminder] = useState<number | null>(isEdit ? cat!.reminder : null);
+  const [tpOpen, setTpOpen] = useState(false);
   const [nameErr, setNameErr] = useState(false);
   const [limitErr, setLimitErr] = useState(false);
   const [gridW, setGridW] = useState(0);
@@ -175,17 +183,22 @@ export function CategorySheetBody({
 
   const tile = gridW > 0 ? (gridW - 5 * 9) / 6 : 0;
 
-  const openTimePicker = () =>
-    overlays.openDialog(({ close: closePicker }) => (
-      <TimePickerBody
-        initialMins={reminder ?? 540}
-        onPick={(m) => {
-          closePicker();
-          setReminder(m);
-        }}
-        close={closePicker}
-      />
-    ));
+  const openTimePicker = () => {
+    setTpOpen(true);
+    overlays.openDialog(
+      ({ close: closePicker }) => (
+        <TimePickerBody
+          initialMins={reminder ?? 540}
+          onPick={(m) => {
+            closePicker();
+            setReminder(m);
+          }}
+          close={closePicker}
+        />
+      ),
+      () => setTpOpen(false),
+    );
+  };
 
   const save = () => {
     const trimmed = name.trim();
@@ -247,6 +260,7 @@ export function CategorySheetBody({
       <SelectField
         icon="alarm"
         isPlaceholder={reminder == null}
+        focused={tpOpen}
         placeholder="Reminder time (Optional)"
         value={
           <Text style={reminder == null ? styles.placeholderText : styles.valueText}>
