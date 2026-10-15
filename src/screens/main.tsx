@@ -424,6 +424,7 @@ function DateStrip({
               accessibilityRole="button"
               accessibilityLabel={fmtDay(k)}
               style={[styles.dayCell, sel && styles.dayCellSel, isToday && !sel && styles.dayCellToday]}>
+              {isToday && !sel ? <View pointerEvents="none" style={styles.dayDot} /> : null}
               <Text style={[styles.dayW, sel && styles.dayWSel]}>{DAY_L[d.getDay()]}</Text>
               <Text style={[styles.dayN, sel && styles.dayNSel]}>{d.getDate()}</Text>
             </Pressable>
@@ -727,6 +728,17 @@ const styles = StyleSheet.create({
   },
   dayCellSel: { backgroundColor: C.primary },
   dayCellToday: { borderColor: 'rgba(46,122,107,.5)' },
+  // ref: .day-cell.today::before — 5px dot centred 5px below the cell's inner edge.
+  dayDot: {
+    position: 'absolute',
+    top: 5,
+    left: '50%',
+    marginLeft: -2.5,
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: C.primary,
+  },
   dayW: { fontSize: 11, fontWeight: '600', color: C.text3, letterSpacing: 0.5 },
   dayWSel: { color: 'rgba(255,255,255,.8)' },
   dayN: { fontSize: 16.5, fontWeight: '600', color: C.text, fontVariant: ['tabular-nums'] },
