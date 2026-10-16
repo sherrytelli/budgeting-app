@@ -1,6 +1,7 @@
 /**
- * Login screen — port of the reference index.html #screen-login and the
- * login handler in app.js (demo account, 900ms fake delay, session flag).
+ * Login screen — port of the reference index.html #screen-login. Authentication
+ * goes through the backend's OAuth2 password flow; the returned bearer token is
+ * held in memory only, so the user signs in again on every cold start.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -10,12 +11,11 @@ import { router } from 'expo-router';
 
 import { C, shadow } from '@/constants/theme';
 import { Icon } from '@/lib/icons';
-import { getSession, setSession } from '@/lib/storage';
+import { useAuth } from '@/lib/auth';
 import { Btn, Field, PressableScale, Spinner } from '@/components/ui';
 
-const DEMO = { email: 'demo@budget.app', pass: 'budget123' };
-
 export default function LoginScreen() {
+  const auth = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,30 +26,22 @@ export default function LoginScreen() {
 
   // Already signed in? Go straight to the app, like the reference's boot().
   useEffect(() => {
-    let mounted = true;
-    getSession().then((session) => {
-      if (mounted && session === '1') router.replace('/main');
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (auth.ready && auth.token) router.replace('/main');
+  }, [auth.ready, auth.token]);
 
   const submit = () => {
     if (busyRef.current) return;
     setError(false);
     busyRef.current = true;
     setBusy(true);
-    setTimeout(() => {
-      const ok = email.trim().toLowerCase() === DEMO.email && password === DEMO.pass;
-      busyRef.current = false;
-      setBusy(false);
-      if (ok) {
-        void setSession('1').then(() => router.replace('/main'));
-      } else {
-        setError(true);
-      }
-    }, 900);
+    auth
+      .signIn(email.trim(), password)
+      .then(() => router.replace('/main'))
+      .catch(() => setError(true))
+      .finally(() => {
+        busyRef.current = false;
+        setBusy(false);
+      });
   };
 
   return (
@@ -90,7 +82,6 @@ export default function LoginScreen() {
           <Btn block disabled={busy} onPress={submit}>
             {busy ? <Spinner /> : 'Sign in'}
           </Btn>
-          <Text style={styles.hint}>Demo account · demo@budget.app · budget123</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -115,5 +106,4 @@ const styles = StyleSheet.create({
   form: { width: '100%', maxWidth: 340, gap: 14 },
   eye: { padding: 4 },
   error: { color: C.red, fontSize: 13.5, paddingLeft: 6 },
-  hint: { color: C.text3, fontSize: 12.5, textAlign: 'center', marginTop: 4 },
 });

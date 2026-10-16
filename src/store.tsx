@@ -1,23 +1,20 @@
 /**
- * App state store — port of the reference app.js `state` object and its
- * mutation logic. Budgets persist through the storage layer; the rest mirrors
- * the reference's monthKey / budgetIdx / selectedDate / windowStart /
- * expandedCat view state.
+ * App state store. Server state (budgets, categories, expenses) is owned by
+ * TanStack Query and loaded from the backend; this provider keeps the reference
+ * app's view state (monthKey / budgetIdx / selectedDate / windowStart /
+ * expandedCat) and exposes the same mutation API the UI already calls, so the
+ * screens and sheets stay unchanged.
  */
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import * as budgetsApi from '@/lib/api/budgets';
+import * as categoriesApi from '@/lib/api/categories';
+import * as expensesApi from '@/lib/api/expenses';
+import { splitMonthKey } from '@/lib/api/mappers';
+import { useAuth } from '@/lib/auth';
 import { initWindow, keyOf, monthKeyOf, today } from '@/lib/dates';
-import { loadBudgets, saveBudgets } from '@/lib/storage';
-import { seedBudgets } from '@/lib/seed';
 import type { Budget, Category, Expense } from '@/lib/types';
 
 export interface AppState {
@@ -31,6 +28,12 @@ export interface AppState {
 
 export interface AppApi extends AppState {
   hydrated: boolean;
+  /** True once the viewed month's budgets have been fetched at least once. */
+  budgetsLoaded: boolean;
+  /** True while a manual refresh (pull-to-refresh) is in flight. */
+  refreshing: boolean;
+  /** Re-fetches the viewed month, ignoring staleness. */
+  refresh(): void;
   monthBudgets(): Budget[];
   activeBudget(): Budget | null;
   selectDate(k: string): void;
@@ -41,7 +44,7 @@ export interface AppApi extends AppState {
   setExpandedCat(id: string | null): void;
   /** Resets the view to the current month, like the reference's enterApp(). */
   enterMonth(): void;
-  addBudget(b: Budget): void;
+  addBudget(b: Budget): Promise<Budget>;
   updateBudget(b: Budget): void;
   deleteBudget(id: string): void;
   /** Points the view at the given budget inside its month, after create/edit. */
@@ -54,6 +57,11 @@ export interface AppApi extends AppState {
   deleteExpense(budgetId: string, catId: string, expenseId: string): void;
 }
 
+export const budgetKeys = {
+  all: ['budgets'] as const,
+  month: (monthKey: string) => ['budgets', monthKey] as const,
+};
+
 const AppContext = createContext<AppApi | null>(null);
 
 export function useApp(): AppApi {
@@ -65,57 +73,78 @@ export function useApp(): AppApi {
 const initialMonth = monthKeyOf(today());
 const initialDate = keyOf(today());
 
+interface ViewState {
+  monthKey: string;
+  budgetIdx: number;
+  selectedDate: string;
+  windowStart: Date;
+  expandedCat: string | null;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => ({
-    budgets: [],
+  const { ready, token } = useAuth();
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<ViewState>(() => ({
     monthKey: initialMonth,
     budgetIdx: 0,
     selectedDate: initialDate,
     windowStart: initWindow(initialMonth, initialDate),
     expandedCat: null,
   }));
-  const [hydrated, setHydrated] = useState(false);
-  const loadedRef = useRef(false);
 
-  // Boot: load stored budgets or seed, exactly like the reference's boot().
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const stored = await loadBudgets();
-      if (!mounted) return;
-      if (stored) {
-        setState((s) => ({ ...s, budgets: stored }));
-      } else {
-        const seeded = seedBudgets();
-        saveBudgets(seeded);
-        setState((s) => ({ ...s, budgets: seeded }));
-      }
-      loadedRef.current = true;
-      setHydrated(true);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const { year, month } = useMemo(() => splitMonthKey(view.monthKey), [view.monthKey]);
 
-  // Persist on every change after hydration, like the reference's store.save() in renderAll().
-  useEffect(() => {
-    if (loadedRef.current) saveBudgets(state.budgets);
-  }, [state.budgets]);
+  const budgetsQuery = useQuery({
+    queryKey: budgetKeys.month(view.monthKey),
+    queryFn: () => budgetsApi.fetchMonthBudgets(year, month),
+    enabled: !!token && Number.isFinite(year) && Number.isFinite(month),
+    // Always stale so a foreground return / pull-to-refresh actually refetches.
+    staleTime: 0,
+  });
+
+  const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data]);
+  const budgetsLoaded = budgetsQuery.isFetched;
+
+  const invalidateBudgets = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: budgetKeys.all });
+  }, [queryClient]);
+
+  const createBudgetMutation = useMutation({ mutationFn: (b: Budget) => budgetsApi.createBudget(b), onSuccess: invalidateBudgets });
+  const updateBudgetMutation = useMutation({ mutationFn: (b: Budget) => budgetsApi.updateBudget(b), onSuccess: invalidateBudgets });
+  const deleteBudgetMutation = useMutation({ mutationFn: (id: string) => budgetsApi.deleteBudget(id), onSuccess: invalidateBudgets });
+  const createCategoryMutation = useMutation({
+    mutationFn: (vars: { budgetId: string; category: Category }) => categoriesApi.createCategory(vars.budgetId, vars.category),
+    onSuccess: invalidateBudgets,
+  });
+  const updateCategoryMutation = useMutation({ mutationFn: (c: Category) => categoriesApi.updateCategory(c), onSuccess: invalidateBudgets });
+  const deleteCategoryMutation = useMutation({ mutationFn: (id: string) => categoriesApi.deleteCategory(id), onSuccess: invalidateBudgets });
+  const createExpenseMutation = useMutation({
+    mutationFn: (vars: { categoryId: string; expense: Expense }) => expensesApi.createExpense(vars.categoryId, vars.expense),
+    onSuccess: invalidateBudgets,
+  });
+  const updateExpenseMutation = useMutation({
+    mutationFn: (vars: { expense: Expense; categoryId: string }) => expensesApi.updateExpense(vars.expense, vars.categoryId),
+    onSuccess: invalidateBudgets,
+  });
+  const deleteExpenseMutation = useMutation({ mutationFn: (id: string) => expensesApi.deleteExpense(id), onSuccess: invalidateBudgets });
+
+  // The list can shrink under us (a budget moved month) — clamp for display
+  // rather than writing back to state from an effect.
+  const effectiveIdx = Math.min(view.budgetIdx, Math.max(0, budgets.length - 1));
 
   const monthBudgets = useCallback(
-    () => state.budgets.filter((b) => b.monthKey === state.monthKey),
-    [state.budgets, state.monthKey],
+    () => budgets.filter((b) => b.monthKey === view.monthKey),
+    [budgets, view.monthKey],
   );
-  const activeBudget = useCallback(() => monthBudgets()[state.budgetIdx] || null, [monthBudgets, state.budgetIdx]);
+  const activeBudget = useCallback(() => monthBudgets()[effectiveIdx] || null, [monthBudgets, effectiveIdx]);
 
   const selectDate = useCallback((k: string) => {
-    setState((s) => (k === s.selectedDate ? s : { ...s, selectedDate: k, expandedCat: null }));
+    setView((v) => (k === v.selectedDate ? v : { ...v, selectedDate: k, expandedCat: null }));
   }, []);
 
   const switchMonth = useCallback((mk: string) => {
-    setState((s) => ({
-      ...s,
+    setView((v) => ({
+      ...v,
       monthKey: mk,
       selectedDate: monthKeyOf(today()) === mk ? keyOf(today()) : `${mk}-01`,
       budgetIdx: 0,
@@ -124,134 +153,84 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setWindowStart = useCallback((d: Date) => setState((s) => ({ ...s, windowStart: d })), []);
+  const setWindowStart = useCallback((d: Date) => setView((v) => ({ ...v, windowStart: d })), []);
   const setBudgetIdx = useCallback(
-    (i: number) => setState((s) => (i === s.budgetIdx ? s : { ...s, budgetIdx: i, expandedCat: null })),
+    (i: number) => setView((v) => (i === v.budgetIdx ? v : { ...v, budgetIdx: i, expandedCat: null })),
     [],
   );
   const toggleExpanded = useCallback(
-    (catId: string) =>
-      setState((s) => ({ ...s, expandedCat: s.expandedCat === catId ? null : catId })),
+    (catId: string) => setView((v) => ({ ...v, expandedCat: v.expandedCat === catId ? null : catId })),
     [],
   );
-  const setExpandedCat = useCallback((id: string | null) => setState((s) => ({ ...s, expandedCat: id })), []);
+  const setExpandedCat = useCallback((id: string | null) => setView((v) => ({ ...v, expandedCat: id })), []);
 
   const enterMonth = useCallback(() => {
     const mk = monthKeyOf(today());
     const dk = keyOf(today());
-    setState((s) => ({ ...s, monthKey: mk, selectedDate: dk, budgetIdx: 0, expandedCat: null, windowStart: initWindow(mk, dk) }));
+    setView((v) => ({ ...v, monthKey: mk, selectedDate: dk, budgetIdx: 0, expandedCat: null, windowStart: initWindow(mk, dk) }));
   }, []);
 
-  const mapBudget = useCallback((id: string, fn: (b: Budget) => Budget) => {
-    setState((s) => ({ ...s, budgets: s.budgets.map((b) => (b.id === id ? fn(b) : b)) }));
-  }, []);
-
-  const addBudget = useCallback((b: Budget) => {
-    setState((s) => ({ ...s, budgets: [...s.budgets, b] }));
-  }, []);
-
-  const updateBudget = useCallback((b: Budget) => {
-    setState((s) => {
-      const budgets = s.budgets.map((x) => (x.id === b.id ? b : x));
-      // Clamp budgetIdx if this budget left the viewed month (renderAll() did this every pass).
-      const list = budgets.filter((x) => x.monthKey === s.monthKey);
-      const budgetIdx = s.budgetIdx >= list.length ? Math.max(0, list.length - 1) : s.budgetIdx;
-      return { ...s, budgets, budgetIdx };
-    });
-  }, []);
-
-  const deleteBudget = useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      budgets: s.budgets.filter((x) => x.id !== id),
-      budgetIdx: 0,
-      expandedCat: null,
-    }));
-  }, []);
-
-  const focusBudget = useCallback((mk: string, budgetId: string) => {
-    setState((s) => {
+  // A freshly created budget may not be in the fetched list yet: switch to its
+  // month immediately, then point the carousel at it once that month's data is
+  // available (the fetch also seeds the query cache the screen reads from).
+  const focusBudget = useCallback(
+    (mk: string, budgetId: string) => {
       const selectedDate = monthKeyOf(today()) === mk ? keyOf(today()) : `${mk}-01`;
-      const list = s.budgets.filter((b) => b.monthKey === mk);
-      const idx = Math.max(0, list.findIndex((x) => x.id === budgetId));
-      return { ...s, monthKey: mk, selectedDate, budgetIdx: idx, expandedCat: null, windowStart: initWindow(mk, selectedDate) };
-    });
-  }, []);
-
-  const addCategory = useCallback(
-    (budgetId: string, c: Category) =>
-      mapBudget(budgetId, (b) => ({ ...b, categories: [...b.categories, c] })),
-    [mapBudget],
-  );
-
-  const updateCategory = useCallback(
-    (budgetId: string, c: Category) =>
-      mapBudget(budgetId, (b) => ({
-        ...b,
-        categories: b.categories.map((x) => (x.id === c.id ? c : x)),
-      })),
-    [mapBudget],
-  );
-
-  const deleteCategory = useCallback(
-    (budgetId: string, catId: string) => {
-      mapBudget(budgetId, (b) => ({
-        ...b,
-        categories: b.categories.filter((c) => c.id !== catId),
-      }));
-      setState((s) => (s.expandedCat === catId ? { ...s, expandedCat: null } : s));
+      setView((v) => ({ ...v, monthKey: mk, selectedDate, budgetIdx: 0, expandedCat: null, windowStart: initWindow(mk, selectedDate) }));
+      const { year: y, month: m } = splitMonthKey(mk);
+      void queryClient
+        .fetchQuery({ queryKey: budgetKeys.month(mk), queryFn: () => budgetsApi.fetchMonthBudgets(y, m), staleTime: 0 })
+        .then((list) => {
+          const idx = list.findIndex((b) => b.id === budgetId);
+          if (idx >= 0) setView((v) => (v.monthKey === mk ? { ...v, budgetIdx: idx } : v));
+        })
+        .catch(() => {});
     },
-    [mapBudget],
+    [queryClient],
   );
 
-  const addExpense = useCallback(
-    (budgetId: string, catId: string, e: Expense) =>
-      mapBudget(budgetId, (b) => ({
-        ...b,
-        categories: b.categories.map((c) => (c.id === catId ? { ...c, expenses: [...c.expenses, e] } : c)),
-      })),
-    [mapBudget],
-  );
+  const addBudget = (b: Budget) => createBudgetMutation.mutateAsync(b);
+  const updateBudget = (b: Budget) => {
+    updateBudgetMutation.mutate(b);
+  };
+  const deleteBudget = (id: string) => {
+    deleteBudgetMutation.mutate(id);
+  };
+  const addCategory = (budgetId: string, c: Category) => {
+    createCategoryMutation.mutate({ budgetId, category: c });
+  };
+  const updateCategory = (_budgetId: string, c: Category) => {
+    updateCategoryMutation.mutate(c);
+  };
+  const deleteCategory = (_budgetId: string, catId: string) => {
+    deleteCategoryMutation.mutate(catId);
+  };
+  const addExpense = (_budgetId: string, catId: string, e: Expense) => {
+    createExpenseMutation.mutate({ categoryId: catId, expense: e });
+  };
+  const updateExpense = (_budgetId: string, expense: Expense, newCatId: string) => {
+    updateExpenseMutation.mutate({ expense, categoryId: newCatId });
+  };
+  const deleteExpense = (_budgetId: string, _catId: string, expenseId: string) => {
+    deleteExpenseMutation.mutate(expenseId);
+  };
 
-  // Handles a category switch on edit, like the reference's expense save handler.
-  const updateExpense = useCallback(
-    (budgetId: string, expense: Expense, newCatId: string) => {
-      mapBudget(budgetId, (b) => {
-        const oldCat = b.categories.find((c) => c.expenses.some((e) => e.id === expense.id));
-        if (!oldCat) return b;
-        const categories = b.categories.map((c) => {
-          if (c.id === oldCat.id && oldCat.id !== newCatId) {
-            return { ...c, expenses: c.expenses.filter((e) => e.id !== expense.id) };
-          }
-          if (c.id === oldCat.id) {
-            return { ...c, expenses: c.expenses.map((e) => (e.id === expense.id ? expense : e)) };
-          }
-          return c;
-        });
-        if (oldCat.id === newCatId) return { ...b, categories };
-        return {
-          ...b,
-          categories: categories.map((c) => (c.id === newCatId ? { ...c, expenses: [...c.expenses, expense] } : c)),
-        };
-      });
-    },
-    [mapBudget],
-  );
-
-  const deleteExpense = useCallback(
-    (budgetId: string, catId: string, expenseId: string) =>
-      mapBudget(budgetId, (b) => ({
-        ...b,
-        categories: b.categories.map((c) =>
-          c.id === catId ? { ...c, expenses: c.expenses.filter((e) => e.id !== expenseId) } : c,
-        ),
-      })),
-    [mapBudget],
-  );
+  // Pull-to-refresh: bypass staleness and hit the server now.
+  const refresh = () => {
+    void budgetsQuery.refetch();
+  };
 
   const api: AppApi = {
-    ...state,
-    hydrated,
+    budgets,
+    monthKey: view.monthKey,
+    budgetIdx: effectiveIdx,
+    selectedDate: view.selectedDate,
+    windowStart: view.windowStart,
+    expandedCat: view.expandedCat,
+    hydrated: ready && (token ? budgetsLoaded : true),
+    budgetsLoaded,
+    refreshing: budgetsQuery.isRefetching,
+    refresh,
     monthBudgets,
     activeBudget,
     selectDate,

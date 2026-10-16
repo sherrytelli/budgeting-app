@@ -1,15 +1,27 @@
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OverlayProvider } from '@/components/overlays';
 import { APP_MAX_WIDTH, C } from '@/constants/theme';
+import { AuthProvider } from '@/lib/auth';
 import { AppProvider, useApp } from '@/store';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// React Native fires no browser focus events, so React Query can't tell when the
+// app returns to the foreground unless we wire it to AppState. Web keeps React
+// Query's built-in visibilitychange handling.
+if (Platform.OS !== 'web') {
+  focusManager.setEventListener((handleFocus) => {
+    const sub = AppState.addEventListener('change', (s) => handleFocus(s === 'active'));
+    return () => sub.remove();
+  });
+}
 
 // The reference app is light-only.
 const LightOnlyTheme = {
@@ -70,13 +82,25 @@ function useWebReferenceStyles() {
 
 export default function RootLayout() {
   useWebReferenceStyles();
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true },
+        },
+      }),
+  );
   return (
     <SafeAreaProvider>
       <ThemeProvider value={LightOnlyTheme}>
-        <AppProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </AppProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AppProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </AppProvider>
+          </AuthProvider>
+        </QueryClientProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

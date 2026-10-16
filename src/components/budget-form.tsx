@@ -62,16 +62,16 @@ export function BudgetFormBody({ budget, close }: { budget?: Budget; close: () =
       setAmtErr(true);
       return;
     }
-    let id: string;
     if (isEdit) {
       const updated: Budget = { ...budget!, name: trimmed, amount: amt, currency, monthKey };
       app.updateBudget(updated);
-      id = updated.id;
+      app.focusBudget(monthKey, updated.id);
     } else {
-      id = uid();
-      app.addBudget({ id, name: trimmed, monthKey, amount: amt, currency, categories: [] });
+      void app
+        .addBudget({ id: uid(), name: trimmed, monthKey, amount: amt, currency, categories: [] })
+        .then((created) => app.focusBudget(monthKey, created.id))
+        .catch(() => {});
     }
-    app.focusBudget(monthKey, id);
     close();
   };
 

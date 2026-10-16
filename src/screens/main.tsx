@@ -11,6 +11,7 @@ import {
   Easing,
   PanResponder,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,36 +28,35 @@ import { C, R, shadow } from '@/constants/theme';
 import { addDays, DAY_L, fmtDay, fmtMonth, fromKey, keyOf, today } from '@/lib/dates';
 import { fmtNum, fmtTime, money } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { getSession } from '@/lib/storage';
+import { useAuth } from '@/lib/auth';
+import { useDailyReminderScheduling } from '@/lib/reminders';
 import type { Budget, Category, Expense } from '@/lib/types';
 import { budgetSpent, daySpent, useApp } from '@/store';
 
 export default function MainScreen() {
   const app = useApp();
+  const auth = useAuth();
+  // Schedule today's category reminders for the current month's budgets.
+  useDailyReminderScheduling();
   const insets = useSafeAreaInsets();
   const overlays = useOverlays();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [authed, setAuthed] = useState(false);
 
-  // Guard like the reference boot(): no session flag → back to the login screen.
-  // The screen stays blank until the flag is read, so the protected UI never flashes.
+  // Guard like the reference boot(): no token → back to the login screen.
+  // The screen stays blank until auth resolves, so the protected UI never flashes.
+  const authed = auth.ready && !!auth.token;
   useEffect(() => {
-    let mounted = true;
-    getSession().then((session) => {
-      if (!mounted) return;
-      if (session === '1') setAuthed(true);
-      else void router.replace('/');
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (auth.ready && !auth.token) void router.replace('/');
+  }, [auth.ready, auth.token]);
 
-  // enterApp(): reset the view to the current month once data is hydrated.
+  // enterApp(): reset the view to the current month once auth is ready (once).
+  const enteredRef = useRef(false);
   useEffect(() => {
-    if (app.hydrated) app.enterMonth();
+    if (enteredRef.current || !auth.ready) return;
+    enteredRef.current = true;
+    app.enterMonth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app.hydrated]);
+  }, [auth.ready]);
 
   const list = app.monthBudgets();
   const has = list.length > 0;
@@ -103,21 +103,31 @@ export default function MainScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, !has && { flexGrow: 1 }]}>
+        contentContainerStyle={[styles.scrollContent, !has && { flexGrow: 1 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={app.refreshing}
+            onRefresh={app.refresh}
+            tintColor={C.primary}
+            colors={[C.primary]}
+          />
+        }>
         {!has ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Icon name="wallet" size={42} color={C.onPrimaryContainer} />
-            </View>
-            <Text style={styles.emptyMsg}>
-              There is no monthly budget for the month.{'\n'}Create a budget first.
-            </Text>
-            <PressableScale onPress={() => openBudgetScreen()} style={styles.emptyBtn}>
-              <View style={styles.emptyBtnInner}>
-                <Text style={styles.emptyBtnText}>Create budget</Text>
+          app.budgetsLoaded ? (
+            <View style={styles.empty}>
+              <View style={styles.emptyIcon}>
+                <Icon name="wallet" size={42} color={C.onPrimaryContainer} />
               </View>
-            </PressableScale>
-          </View>
+              <Text style={styles.emptyMsg}>
+                There is no monthly budget for the month.{'\n'}Create a budget first.
+              </Text>
+              <PressableScale onPress={() => openBudgetScreen()} style={styles.emptyBtn}>
+                <View style={styles.emptyBtnInner}>
+                  <Text style={styles.emptyBtnText}>Create budget</Text>
+                </View>
+              </PressableScale>
+            </View>
+          ) : null
         ) : (
           <>
             <BudgetCarousel
