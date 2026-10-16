@@ -1,9 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OverlayProvider } from '@/components/overlays';
@@ -12,6 +12,16 @@ import { AuthProvider } from '@/lib/auth';
 import { AppProvider, useApp } from '@/store';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// React Native fires no browser focus events, so React Query can't tell when the
+// app returns to the foreground unless we wire it to AppState. Web keeps React
+// Query's built-in visibilitychange handling.
+if (Platform.OS !== 'web') {
+  focusManager.setEventListener((handleFocus) => {
+    const sub = AppState.addEventListener('change', (s) => handleFocus(s === 'active'));
+    return () => sub.remove();
+  });
+}
 
 // The reference app is light-only.
 const LightOnlyTheme = {
@@ -76,7 +86,7 @@ export default function RootLayout() {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+          queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true },
         },
       }),
   );

@@ -30,6 +30,10 @@ export interface AppApi extends AppState {
   hydrated: boolean;
   /** True once the viewed month's budgets have been fetched at least once. */
   budgetsLoaded: boolean;
+  /** True while a manual refresh (pull-to-refresh) is in flight. */
+  refreshing: boolean;
+  /** Re-fetches the viewed month, ignoring staleness. */
+  refresh(): void;
   monthBudgets(): Budget[];
   activeBudget(): Budget | null;
   selectDate(k: string): void;
@@ -94,7 +98,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     queryKey: budgetKeys.month(view.monthKey),
     queryFn: () => budgetsApi.fetchMonthBudgets(year, month),
     enabled: !!token && Number.isFinite(year) && Number.isFinite(month),
-    staleTime: 30_000,
+    // Always stale so a foreground return / pull-to-refresh actually refetches.
+    staleTime: 0,
   });
 
   const budgets = useMemo(() => budgetsQuery.data ?? [], [budgetsQuery.data]);
@@ -210,6 +215,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     deleteExpenseMutation.mutate(expenseId);
   };
 
+  // Pull-to-refresh: bypass staleness and hit the server now.
+  const refresh = () => {
+    void budgetsQuery.refetch();
+  };
+
   const api: AppApi = {
     budgets,
     monthKey: view.monthKey,
@@ -219,6 +229,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     expandedCat: view.expandedCat,
     hydrated: ready && (token ? budgetsLoaded : true),
     budgetsLoaded,
+    refreshing: budgetsQuery.isRefetching,
+    refresh,
     monthBudgets,
     activeBudget,
     selectDate,

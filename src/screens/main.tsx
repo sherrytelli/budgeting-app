@@ -11,6 +11,7 @@ import {
   Easing,
   PanResponder,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -102,7 +103,15 @@ export default function MainScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, !has && { flexGrow: 1 }]}>
+        contentContainerStyle={[styles.scrollContent, !has && { flexGrow: 1 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={app.refreshing}
+            onRefresh={app.refresh}
+            tintColor={C.primary}
+            colors={[C.primary]}
+          />
+        }>
         {!has ? (
           app.budgetsLoaded ? (
             <View style={styles.empty}>
