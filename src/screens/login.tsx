@@ -82,7 +82,6 @@ export default function LoginScreen() {
           <Btn block disabled={busy} onPress={submit}>
             {busy ? <Spinner /> : 'Sign in'}
           </Btn>
-          <Text style={styles.hint}>Demo account · demo@budget.app · budget123</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -107,5 +106,4 @@ const styles = StyleSheet.create({
   form: { width: '100%', maxWidth: 340, gap: 14 },
   eye: { padding: 4 },
   error: { color: C.red, fontSize: 13.5, paddingLeft: 6 },
-  hint: { color: C.text3, fontSize: 12.5, textAlign: 'center', marginTop: 4 },
 });
