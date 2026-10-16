@@ -53,7 +53,7 @@ export interface AppApi extends AppState {
   deleteExpense(budgetId: string, catId: string, expenseId: string): void;
 }
 
-const budgetKeys = {
+export const budgetKeys = {
   all: ['budgets'] as const,
   month: (monthKey: string) => ['budgets', monthKey] as const,
 };

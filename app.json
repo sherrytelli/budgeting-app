@@ -14,7 +14,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.budgetingapp"
+      "package": "com.anonymous.budgetingapp",
+      "permissions": ["SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "output": "static",
@@ -30,7 +31,13 @@
           "imageWidth": 78
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#2E7A6B"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

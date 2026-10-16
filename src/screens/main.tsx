@@ -28,12 +28,15 @@ import { addDays, DAY_L, fmtDay, fmtMonth, fromKey, keyOf, today } from '@/lib/d
 import { fmtNum, fmtTime, money } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useAuth } from '@/lib/auth';
+import { useDailyReminderScheduling } from '@/lib/reminders';
 import type { Budget, Category, Expense } from '@/lib/types';
 import { budgetSpent, daySpent, useApp } from '@/store';
 
 export default function MainScreen() {
   const app = useApp();
   const auth = useAuth();
+  // Schedule today's category reminders for the current month's budgets.
+  useDailyReminderScheduling();
   const insets = useSafeAreaInsets();
   const overlays = useOverlays();
   const [menuOpen, setMenuOpen] = useState(false);
