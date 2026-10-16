@@ -1,7 +1,7 @@
 /**
  * Login screen — port of the reference index.html #screen-login. Authentication
- * now goes through the backend's OAuth2 password flow; the returned bearer token
- * is persisted in secure storage.
+ * goes through the backend's OAuth2 password flow; the returned bearer token is
+ * held in memory only, so the user signs in again on every cold start.
  */
 
 import { useEffect, useRef, useState } from 'react';

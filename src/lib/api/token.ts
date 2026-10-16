@@ -1,41 +1,24 @@
 /**
- * Access-token persistence. The bearer token returned by the login route is
- * kept in `expo-secure-store` on native platforms. SecureStore has no web
- * implementation, so web falls back to `localStorage` (the platform the
- * reference app used).
+ * Access-token storage.
+ *
+ * The token is deliberately kept in memory only — it is never written to disk.
+ * A session therefore cannot outlive the app process: closing the app (swiping
+ * it away from the recents screen, or the OS reclaiming it) drops this module's
+ * state, so the next launch always lands on the login screen. Merely
+ * backgrounding the app keeps the session, because the process — and with it
+ * this module — stay alive.
  */
 
-import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-
-const TOKEN_KEY = 'bt_access_token';
-const isWeb = Platform.OS === 'web';
+let token: string | null = null;
 
 export async function getToken(): Promise<string | null> {
-  try {
-    if (isWeb) return globalThis.localStorage?.getItem(TOKEN_KEY) ?? null;
-    return await SecureStore.getItemAsync(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return token;
 }
 
-export async function setToken(token: string): Promise<void> {
-  if (isWeb) {
-    globalThis.localStorage?.setItem(TOKEN_KEY, token);
-    return;
-  }
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+export async function setToken(next: string): Promise<void> {
+  token = next;
 }
 
 export async function clearToken(): Promise<void> {
-  try {
-    if (isWeb) {
-      globalThis.localStorage?.removeItem(TOKEN_KEY);
-      return;
-    }
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-  } catch {
-    // Deleting a missing/invalid key is a no-op for our purposes.
-  }
+  token = null;
 }

@@ -1,7 +1,8 @@
 /**
- * Authentication state. The bearer token from the login route is persisted in
- * secure storage; this provider hydrates it on boot, exposes sign-in/out, and
- * wires the API client's 401 handler so an expired token ends the session.
+ * Authentication state. The bearer token from the login route is held in memory
+ * only (see `api/token`), so a session never survives the app process ending;
+ * this provider reads it on boot, exposes sign-in/out, and wires the API
+ * client's 401 handler so an expired token ends the session.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -11,7 +12,7 @@ import { setUnauthorizedHandler } from '@/lib/api/client';
 import { clearToken, getToken, setToken } from '@/lib/api/token';
 
 export interface AuthApi {
-  /** True once the persisted token has been read. */
+  /** True once the initial token read has completed, before the first route is chosen. */
   ready: boolean;
   token: string | null;
   signIn(email: string, password: string): Promise<void>;
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  // Hydrate the persisted token before the UI decides which screen to show.
+  // Read the token before the UI decides which screen to show.
   useEffect(() => {
     let mounted = true;
     (async () => {
