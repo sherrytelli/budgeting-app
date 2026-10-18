@@ -4,7 +4,7 @@
  * 7-day date strip, category panel, and the FAB action menu.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import {
   Animated,
@@ -25,7 +25,7 @@ import { MonthPickerBody } from '@/components/pickers';
 import { CategorySheetBody, ExpenseSheetBody } from '@/components/sheets';
 import { IconBtn, PressableScale } from '@/components/ui';
 import { C, R, shadow } from '@/constants/theme';
-import { addDays, DAY_L, fmtDay, fmtMonth, fromKey, keyOf, today } from '@/lib/dates';
+import { addDays, DAY_L, daysInMonth, fmtDay, fmtMonth, fromKey, keyOf, today } from '@/lib/dates';
 import { fmtNum, fmtTime, money } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useAuth } from '@/lib/auth';
@@ -352,6 +352,10 @@ function BudgetCarousel({
 
 /* ---------- date strip ---------- */
 
+/** Gap between two day cells. Must match `styles.stripTrack`. */
+const DAY_GAP = 6;
+const DAYS_VISIBLE = 7;
+
 function DateStrip({
   windowStart,
   selectedDate,
@@ -365,64 +369,96 @@ function DateStrip({
 }) {
   const [wrapW, setWrapW] = useState(0);
   const [tx] = useState(() => new Animated.Value(0));
-
-  const cells = useMemo(() => {
-    const out: Date[] = [];
-    for (let i = 0; i < 7; i++) out.push(addDays(windowStart, i));
-    return out;
-  }, [windowStart]);
+  const [locked, setLocked] = useState(false);
   const tKey = keyOf(today());
 
-  const [locked, setLocked] = useState(false);
+  // The whole month is laid out as one track, so days that slide into view are
+  // always already there — nothing pops in and no gap trails the strip. Before
+  // the first layout pass the cell size is unknown, so the plain 7-day window
+  // is rendered instead (identical geometry, so nothing shifts visually).
+  const measured = wrapW > 0;
+  const cellW = measured ? (wrapW - DAY_GAP * (DAYS_VISIBLE - 1)) / DAYS_VISIBLE : 0;
+  const step = measured ? cellW + DAY_GAP : 0;
+
+  const monthStart = useMemo(
+    () => new Date(windowStart.getFullYear(), windowStart.getMonth(), 1),
+    [windowStart],
+  );
+  const days = daysInMonth(monthStart.getFullYear(), monthStart.getMonth());
+
+  const monthCells = useMemo(() => {
+    const out: Date[] = [];
+    for (let i = 0; i < days; i++) out.push(addDays(monthStart, i));
+    return out;
+  }, [monthStart, days]);
+
+  const windowCells = useMemo(() => {
+    const out: Date[] = [];
+    for (let i = 0; i < DAYS_VISIBLE; i++) out.push(addDays(windowStart, i));
+    return out;
+  }, [windowStart]);
+
+  // Index of the first visible day inside the month, in days.
+  const lead = Math.round((windowStart.getTime() - monthStart.getTime()) / 86400000);
+  const base = -lead * step;
+
+  // Park the track whenever the window changes from the outside — first
+  // measurement, month or budget switch. A swipe puts the track on exactly this
+  // value on its own, so re-parking after one is a no-op; that is what keeps
+  // the strip from jumping back for a frame at the end of a swipe.
+  useLayoutEffect(() => {
+    tx.setValue(base);
+  }, [tx, base]);
 
   const pan = useMemo(() => {
+    const settle = (to: number, duration: number, easing: typeof Easing.ease) =>
+      Animated.timing(tx, { toValue: to, duration, easing, useNativeDriver: true });
+
     return PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => !locked && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
-        tx.setValue(g.dx);
+        if (!step) return;
+        tx.setValue(base + g.dx);
       },
       onPanResponderRelease: (_, g) => {
+        if (!step) return;
+        const back = () => settle(base, 200, Easing.out(Easing.quad)).start();
         if (Math.abs(g.dx) <= 8) {
-          tx.setValue(0);
+          back();
           return;
         }
-        const cellW = wrapW / 7;
-        let shift = -Math.round(g.dx / cellW);
-        const start = windowStart;
-        const mk = new Date(start.getFullYear(), start.getMonth(), 1);
-        const dim = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-        const maxStart = new Date(start.getFullYear(), start.getMonth(), dim - 6);
-        let ns = addDays(start, shift);
-        if (ns < mk) ns = new Date(mk);
-        if (ns > maxStart) ns = maxStart;
-        shift = Math.round((ns.getTime() - start.getTime()) / 86400000);
+        // Days to move, clamped so the visible window stays inside the month.
+        const shift = Math.max(-lead, Math.min(days - DAYS_VISIBLE - lead, -Math.round(g.dx / step)));
         if (shift === 0) {
-          Animated.timing(tx, { toValue: 0, duration: 220, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start();
+          back();
           return;
         }
+        const next = addDays(windowStart, shift);
         setLocked(true);
-        Animated.timing(tx, {
-          toValue: -shift * cellW,
-          duration: 220,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }).start(({ finished }) => {
+        settle(base - shift * step, 220, Easing.inOut(Easing.ease)).start(() => {
+          onWindowChange(next);
           // Always unlock, even if the animation is interrupted, so the strip
           // can never get stuck in its locked state.
-          tx.setValue(0);
-          if (finished) onWindowChange(ns);
           setLocked(false);
         });
       },
       onPanResponderTerminate: () => {
-        Animated.timing(tx, { toValue: 0, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+        settle(base, 200, Easing.out(Easing.quad)).start();
+        setLocked(false);
       },
     });
-  }, [tx, wrapW, windowStart, onWindowChange, locked]);
+  }, [tx, step, base, lead, days, windowStart, onWindowChange, locked]);
+
+  const cells = measured ? monthCells : windowCells;
 
   return (
     <View style={styles.stripWrap} onLayout={(e) => setWrapW(e.nativeEvent.layout.width)} {...pan.panHandlers}>
-      <Animated.View style={[styles.stripTrack, { transform: [{ translateX: tx }] }]}>
+      <Animated.View
+        style={[
+          styles.stripTrack,
+          measured && { width: days * cellW + DAY_GAP * (days - 1) },
+          { transform: [{ translateX: tx }] },
+        ]}>
         {cells.map((d) => {
           const k = keyOf(d);
           const sel = k === selectedDate;
@@ -433,7 +469,12 @@ function DateStrip({
               onPress={() => onSelect(k)}
               accessibilityRole="button"
               accessibilityLabel={fmtDay(k)}
-              style={[styles.dayCell, sel && styles.dayCellSel, isToday && !sel && styles.dayCellToday]}>
+              style={[
+                styles.dayCell,
+                measured && { flex: 0, width: cellW },
+                sel && styles.dayCellSel,
+                isToday && !sel && styles.dayCellToday,
+              ]}>
               {isToday && !sel ? <View pointerEvents="none" style={styles.dayDot} /> : null}
               <Text style={[styles.dayW, sel && styles.dayWSel]}>{DAY_L[d.getDay()]}</Text>
               <Text style={[styles.dayN, sel && styles.dayNSel]}>{d.getDate()}</Text>
@@ -725,7 +766,7 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 99, backgroundColor: C.dot },
   dotOn: { width: 22, backgroundColor: C.primary },
   stripWrap: { marginTop: 14, overflow: 'hidden' },
-  stripTrack: { flexDirection: 'row', gap: 6 },
+  stripTrack: { flexDirection: 'row', gap: DAY_GAP },
   dayCell: {
     flex: 1,
     height: 66,
