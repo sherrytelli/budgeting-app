@@ -67,6 +67,8 @@ export default function LoginScreen() {
           <Field
             icon="lock"
             placeholder="Password"
+            autoCapitalize="none"
+            autoCorrect={false}
             secureTextEntry={!showPass}
             value={password}
             onChangeText={setPassword}
