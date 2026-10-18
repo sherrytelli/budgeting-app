@@ -5,15 +5,6 @@
 
 import type { Currency } from '@/lib/types';
 
-export interface UserRead {
-  email: string;
-  full_name: string | null;
-  id: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface TokenResponse {
   access_token: string;
   token_type: string;
@@ -66,11 +57,6 @@ export interface ExpenseRead {
   spent_date: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface CategoryWithExpenses extends DailyCategoryRead {
-  spent: string;
-  expenses: ExpenseRead[];
 }
 
 export interface MonthlyBudgetCreate {

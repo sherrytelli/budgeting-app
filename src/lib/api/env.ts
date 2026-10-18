@@ -16,6 +16,3 @@ function resolveBaseUrl(): string {
 }
 
 export const API_BASE_URL = resolveBaseUrl();
-
-/** Origin without the versioned prefix, for routes like `GET /health`. */
-export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+\/?$/i, '');

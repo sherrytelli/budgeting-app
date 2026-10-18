@@ -1,8 +1,9 @@
 # Backend API Integration
 
 This document describes how the frontend talks to the budgeting backend: which
-routes are wired into the app, what each one is used for, and the exact code
-path a user action takes to reach it.
+routes the app calls, what each one is used for, and the exact code path a user
+action takes to reach it. It lists only the routes that are actually wired in;
+the routes the app never called have been removed from the backend.
 
 Everything lives under `src/lib/api/`. The backend base URL comes from the
 `EXPO_PUBLIC_BACKEND_URL` environment variable (`.env`), and the authenticated
@@ -91,6 +92,9 @@ Query lifecycle:
    sends the user back to the login screen. A `401` from `/auth/login` is treated
    as bad credentials and simply shows the inline error.
 
+There is no sign-up flow: the app only exposes sign-in, so no registration route
+is called.
+
 ## Data mapping notes
 
 - **Money** is stored by the API as decimal strings (`"80000.00"`) and converted
@@ -101,23 +105,3 @@ Query lifecycle:
   device-local date + minutes.
 - **Reminders** (`HH:MM:SS` on the API) map to minutes since midnight in the UI.
 - **Icon** is nullable on the API; the UI falls back to `basket`.
-
-## Routes implemented but not yet wired to the UI
-
-These are available as typed functions in `src/lib/api/` and follow the spec, but
-the current UI has no feature that calls them (no dead UI was invented to use
-them):
-
-| Method | Path | Function | Why unused |
-| --- | --- | --- | --- |
-| `GET` | `/auth/me` | `getMe()` | The profile is not displayed anywhere. |
-| `GET` | `/budgets/current` | `getCurrentBudgets()` | The month view uses `/budgets?year&month` uniformly for all months. |
-| `GET` | `/budgets/{budget_id}/daily` | `getBudgetDaily()` | Day panels are derived from the already-loaded month expenses. |
-| `GET` | `/budgets/{budget_id}/categories` | `listCategories()` | Categories arrive nested in `GET /budgets/{id}`. |
-| `GET` | `/reminders` | `getReminders()` | The app has no push-notification scheduling yet. |
-| `GET` | `/expenses/{expense_id}` | `getExpense()` | Expenses come from the month list. |
-| `GET` | `/health` | `getHealth()` | Infrastructure probe, not an app feature. |
-
-## Not integrated
-
-- `POST /auth/register` — intentionally left out; there is no sign-up screen.

@@ -5,7 +5,7 @@ import type { Budget } from '@/lib/types';
 import { api } from './client';
 import { listExpenses } from './expenses';
 import { budgetCreatePayload, toAppBudget } from './mappers';
-import type { CategoryWithExpenses, MonthlyBudgetRead, MonthlyBudgetWithCategories } from './types';
+import type { MonthlyBudgetRead, MonthlyBudgetWithCategories } from './types';
 
 export interface ListBudgetsParams {
   year?: number;
@@ -18,21 +18,9 @@ export async function listBudgets(params: ListBudgetsParams = {}): Promise<Month
   return data;
 }
 
-/** `GET /budgets/current` — current month's budgets with nested categories. */
-export async function getCurrentBudgets(): Promise<MonthlyBudgetWithCategories[]> {
-  const { data } = await api.get<MonthlyBudgetWithCategories[]>('/budgets/current');
-  return data;
-}
-
 /** `GET /budgets/{budget_id}` — one budget with nested categories. */
 export async function getBudget(budgetId: string): Promise<MonthlyBudgetWithCategories> {
   const { data } = await api.get<MonthlyBudgetWithCategories>(`/budgets/${budgetId}`);
-  return data;
-}
-
-/** `GET /budgets/{budget_id}/daily?date=` — per-category panel for one day. */
-export async function getBudgetDaily(budgetId: string, date: string): Promise<CategoryWithExpenses[]> {
-  const { data } = await api.get<CategoryWithExpenses[]>(`/budgets/${budgetId}/daily`, { params: { date } });
   return data;
 }
 

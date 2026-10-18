@@ -12,12 +12,7 @@
 
 import { pad } from '@/lib/dates';
 import type { Budget, Category, Currency, Expense } from '@/lib/types';
-import type {
-  CategoryRead,
-  DailyCategoryRead,
-  ExpenseRead,
-  MonthlyBudgetWithCategories,
-} from './types';
+import type { CategoryRead, ExpenseRead, MonthlyBudgetWithCategories } from './types';
 
 const DEFAULT_ICON = 'basket';
 
@@ -90,17 +85,6 @@ export function toAppCategory(dto: CategoryRead, expenses: Expense[] = []): Cate
     reminder: reminderToMinutes(dto.reminder_time),
     icon: dto.icon ?? DEFAULT_ICON,
     expenses,
-  };
-}
-
-export function toAppCategoryFromDaily(dto: DailyCategoryRead): Category {
-  return {
-    id: dto.id,
-    name: dto.name,
-    dailyLimit: Number(dto.daily_limit),
-    reminder: reminderToMinutes(dto.reminder_time),
-    icon: dto.icon ?? DEFAULT_ICON,
-    expenses: [],
   };
 }
 

@@ -18,12 +18,6 @@ export async function listExpenses(params: ExpenseListParams = {}): Promise<Expe
   return data;
 }
 
-/** `GET /expenses/{expense_id}` */
-export async function getExpense(expenseId: string): Promise<ExpenseRead> {
-  const { data } = await api.get<ExpenseRead>(`/expenses/${expenseId}`);
-  return data;
-}
-
 /** `PUT /expenses/{expense_id}` — also used to reassign the expense's category. */
 export async function updateExpense(expense: Expense, categoryId: string): Promise<ExpenseRead> {
   const { data } = await api.put<ExpenseRead>(`/expenses/${expense.id}`, expensePayload(expense, categoryId));
