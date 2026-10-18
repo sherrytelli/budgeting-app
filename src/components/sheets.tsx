@@ -170,7 +170,7 @@ export function CategorySheetBody({
   const isEdit = !!cat;
   const [name, setName] = useState(isEdit ? cat!.name : '');
   const [limit, setLimit] = useState(isEdit ? String(cat!.dailyLimit) : '');
-  const [icon, setIcon] = useState<string>(isEdit ? cat!.icon : 'basket');
+  const [icon, setIcon] = useState<string>(isEdit ? cat!.icon : 'utensils');
   const [reminder, setReminder] = useState<number | null>(isEdit ? cat!.reminder : null);
   const [tpOpen, setTpOpen] = useState(false);
   const [nameErr, setNameErr] = useState(false);

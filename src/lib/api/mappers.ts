@@ -14,7 +14,7 @@ import { pad } from '@/lib/dates';
 import type { Budget, Category, Currency, Expense } from '@/lib/types';
 import type { CategoryRead, ExpenseRead, MonthlyBudgetWithCategories } from './types';
 
-const DEFAULT_ICON = 'basket';
+const DEFAULT_ICON = 'utensils';
 
 /* ---------- time helpers ---------- */
 
