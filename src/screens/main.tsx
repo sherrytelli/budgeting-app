@@ -643,10 +643,14 @@ function CatRow({
           <View style={styles.catFoot}>
             <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel={`Edit ${c.name}`} style={styles.catFootBtn}>
               <Icon name="pencil" size={22} color={C.primary} />
-              <Text style={styles.catFootText}>Edit category</Text>
+              <Text style={styles.catFootText} numberOfLines={1}>
+                Edit category
+              </Text>
             </Pressable>
             <Pressable onPress={onDelete} accessibilityRole="button" accessibilityLabel={`Delete ${c.name}`} style={styles.catFootBtn}>
-              <Text style={[styles.catFootText, { color: C.red }]}>Delete category</Text>
+              <Text style={[styles.catFootText, { color: C.red }]} numberOfLines={1}>
+                Delete category
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -840,10 +844,31 @@ const styles = StyleSheet.create({
   logSub: { fontSize: 12.5, color: C.text2, marginTop: 2, fontVariant: ['tabular-nums'] },
   logBtn: { width: 34, height: 34 },
   noExp: { paddingVertical: 8, paddingLeft: 66, paddingRight: 16, paddingBottom: 12, color: C.text3, fontSize: 13.5 },
-  catFoot: { flexDirection: 'row', gap: 2, paddingTop: 2, paddingBottom: 12, paddingLeft: 58, paddingRight: 10 },
+  // Centred as a pair instead of indented to the category name: the indent was a
+  // fixed 58px, so on narrower screens it pushed both buttons past the right edge
+  // of the row, where the row's overflow clipping cut them off.
+  catFoot: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 2,
+    paddingBottom: 12,
+    paddingHorizontal: 8,
+  },
   // ref .cat-foot .btn { height: 36px; font-size: 13px; padding: 0 12px } + .btn { gap: 8px }
-  catFootBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 36, paddingHorizontal: 12, borderRadius: 999 },
-  catFootText: { color: C.primary, fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
+  catFootBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 36,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    flexShrink: 1,
+  },
+  catFootText: { color: C.primary, fontSize: 13, fontWeight: '600', letterSpacing: 0.2, flexShrink: 1 },
   fab: {
     position: 'absolute',
     right: 20,
