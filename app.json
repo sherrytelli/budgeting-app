@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "budgeting-app",
+    "name": "Budget Tracker",
     "slug": "budgeting-app",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "budgetingapp",
@@ -14,7 +14,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.budgetingapp",
+      "package": "com.sherrytelli.budgettracker",
       "permissions": ["SCHEDULE_EXACT_ALARM"]
     },
     "web": {
