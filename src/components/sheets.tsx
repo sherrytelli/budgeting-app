@@ -272,14 +272,6 @@ export function CategorySheetBody({
       <View style={styles.gap} />
       <View style={styles.pickerHead}>
         <Text style={styles.pickerTtl}>Choose an icon</Text>
-        <View style={styles.pickerPreview}>
-          <View style={styles.mini}>
-            <Icon name={icon} size={16} color={C.onPrimaryContainer} />
-          </View>
-          <Text style={styles.pickerNm} numberOfLines={1}>
-            {name.trim() || 'Category'}
-          </Text>
-        </View>
       </View>
       <View style={styles.iconGrid} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
         {tile > 0
@@ -353,16 +345,6 @@ const styles = StyleSheet.create({
   ddOptSel: { backgroundColor: C.primaryContainer },
   pickerHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   pickerTtl: { fontSize: 14.5, fontWeight: '600', color: C.text2 },
-  pickerPreview: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  mini: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: C.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerNm: { fontSize: 13.5, fontWeight: '600', color: C.text, maxWidth: 110 },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 },
   iconTile: {
     borderRadius: 13,
