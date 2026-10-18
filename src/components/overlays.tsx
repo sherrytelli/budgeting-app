@@ -22,7 +22,6 @@ import {
   Easing,
   KeyboardAvoidingView,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -264,23 +263,24 @@ function SheetHost({ id, isTop, remove, content, title }: HostProps & { title: s
         style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: progress }]}
         onPress={close}
       />
-      <View style={styles.sheetWrap} pointerEvents="box-none">
+      <KeyboardAvoidingView
+        style={[styles.sheetWrap, { paddingTop: insets.top }]}
+        behavior="padding"
+        pointerEvents="box-none">
         <Animated.View onLayout={(e) => onLayout(e.nativeEvent.layout.height)} style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View {...pan.panHandlers} style={styles.sheetGrab}>
-              <View style={styles.sheetHandle} />
-              {title ? <Text style={styles.sheetTitle}>{title}</Text> : null}
-            </View>
-            <ScrollView
-              style={styles.sheetScroll}
-              contentContainerStyle={[styles.sheetContent, { paddingBottom: 30 + insets.bottom }]}
-              keyboardShouldPersistTaps="handled"
-              bounces={false}>
-              {content({ close })}
-            </ScrollView>
-          </KeyboardAvoidingView>
+          <View {...pan.panHandlers} style={styles.sheetGrab}>
+            <View style={styles.sheetHandle} />
+            {title ? <Text style={styles.sheetTitle}>{title}</Text> : null}
+          </View>
+          <ScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={[styles.sheetContent, { paddingBottom: 30 + insets.bottom }]}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}>
+            {content({ close })}
+          </ScrollView>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -342,7 +342,7 @@ function FullscreenHost({ id, isTop, remove, title, content }: HostProps & { tit
         <IconBtn name="chevL" label="Back" onPress={close} size={22} />
         <Text style={styles.fsTitle}>{title}</Text>
       </View>
-      <KeyboardAvoidingView style={styles.fsBodyWrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.fsBodyWrap} behavior="padding">
         <ScrollView contentContainerStyle={[styles.fsBody, { paddingBottom: 46 + insets.bottom }]} keyboardShouldPersistTaps="handled">
           {content({ close })}
         </ScrollView>
@@ -361,12 +361,15 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
+    // Never taller than the space left above the keyboard (see the hosting
+    // KeyboardAvoidingView, which pads the wrapper by the keyboard height).
+    maxHeight: '100%',
     ...shadow(3),
   },
   sheetGrab: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4 },
   sheetHandle: { width: 36, height: 4.5, borderRadius: 99, backgroundColor: C.handle, alignSelf: 'center', marginBottom: 6 },
   sheetTitle: { textAlign: 'center', fontSize: 17.5, fontWeight: '700', color: C.text, paddingVertical: 3 },
-  sheetScroll: { flexGrow: 0, maxHeight: SCREEN_H * 0.88 },
+  sheetScroll: { flexGrow: 0, flexShrink: 1, maxHeight: SCREEN_H * 0.88 },
   sheetContent: { paddingHorizontal: 22, paddingTop: 12 },
   dialogCenter: {
     position: 'absolute',

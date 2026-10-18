@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Animated, Easing, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 import { C, shadow } from '@/constants/theme';
 import { Icon } from '@/lib/icons';
@@ -195,7 +195,12 @@ export function SelectField({
   const active = pressed || focused;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        // The menu or picker dialog this field opens is drawn over the sheet, so
+        // drop the keyboard first — otherwise it sits on top of the popup.
+        Keyboard.dismiss();
+        onPress?.();
+      }}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       accessibilityRole="button"
