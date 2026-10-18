@@ -765,20 +765,26 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 7, marginTop: 14 },
   dot: { width: 7, height: 7, borderRadius: 99, backgroundColor: C.dot },
   dotOn: { width: 22, backgroundColor: C.primary },
-  stripWrap: { marginTop: 14, overflow: 'hidden' },
+  // The vertical padding is shadow room: the wrap clips the track, so without it
+  // the cards' shadows would be cut off flat at the top and bottom edges.
+  stripWrap: { marginTop: 14, paddingVertical: 8, overflow: 'hidden' },
   stripTrack: { flexDirection: 'row', gap: DAY_GAP },
+  // Each day is its own card, using the same surface, hairline border and
+  // shadow the rest of the screen's cards use.
   dayCell: {
     flex: 1,
     height: 66,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    backgroundColor: C.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    ...shadow(1),
   },
-  dayCellSel: { backgroundColor: C.primary },
-  dayCellToday: { borderColor: 'rgba(46,122,107,.5)' },
+  dayCellSel: { backgroundColor: C.primary, borderColor: C.primary },
+  dayCellToday: { borderColor: C.primary },
   // ref: .day-cell.today::before — 5px dot centred 5px below the cell's inner edge.
   dayDot: {
     position: 'absolute',
