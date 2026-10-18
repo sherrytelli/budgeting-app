@@ -176,10 +176,6 @@ export function CategorySheetBody({
   const [nameErr, setNameErr] = useState(false);
   const [limitErr, setLimitErr] = useState(false);
   const [gridW, setGridW] = useState(0);
-  // Narrowed copies: safe to read even in create mode (React Compiler hoists
-  // captured property reads into render-time memo deps).
-  const catId = cat?.id;
-  const catName = cat?.name;
 
   const tile = gridW > 0 ? (gridW - 5 * 9) / 6 : 0;
 
@@ -217,18 +213,6 @@ export function CategorySheetBody({
       app.addCategory(budget.id, { id: uid(), name: trimmed, dailyLimit: lim, reminder, icon, expenses: [] });
     }
     close();
-  };
-
-  const remove = () => {
-    if (catId == null) return;
-    overlays.openConfirmDialog({
-      title: 'Delete category?',
-      message: `This will also delete all expenses logged under "${catName ?? ''}". This cannot be undone.`,
-      onConfirm() {
-        app.deleteCategory(budget.id, catId);
-        close();
-      },
-    });
   };
 
   return (
@@ -292,14 +276,6 @@ export function CategorySheetBody({
       <Btn block onPress={save}>
         {isEdit ? 'Save changes' : 'Create category'}
       </Btn>
-      {isEdit ? (
-        <>
-          <View style={styles.gap} />
-          <Btn variant="text" danger block onPress={remove}>
-            Delete category
-          </Btn>
-        </>
-      ) : null}
     </>
   );
 }
